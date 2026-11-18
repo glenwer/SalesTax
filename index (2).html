@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sales Tax — Glenview Florist</title>
+<style>
+  :root { --green-d:#1b5e20; --green-m:#2e7d32; --green-l:#c8e6c9; --green-xl:#e8f5e9;
+          --slate:#37474f; --gray:#eeeeee; --yellow:#fff9c4; --line:#bdbdbd; --red:#c62828; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: Arial, "Malgun Gothic", sans-serif; font-size:13px; background:#fafafa; color:#212121; }
+  #top { position:sticky; top:0; z-index:10; background:#fafafa; padding:8px 16px 6px; border-bottom:2px solid var(--green-d); }
+  .wrap { max-width:1180px; margin:0 auto; }
+  .bar { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+  .bar .spacer { flex:1; }
+  button { font:inherit; padding:5px 10px; border:1px solid var(--line); background:#fff; border-radius:4px; cursor:pointer; }
+  button:hover { background:var(--green-xl); }
+  button.ghost { border-color:transparent; background:transparent; }
+  input[type=month] { font:inherit; padding:4px 6px; }
+  #status { color:#616161; }
+  #status.err { color:var(--red); font-weight:bold; }
+  h1 { margin:0 0 6px; padding:8px; text-align:center; font-size:22px; color:#fff; background:var(--green-d); border-radius:4px 4px 0 0; }
+  table { width:100%; border-collapse:collapse; background:#fff; }
+  th, td { border:1px solid var(--line); padding:4px 6px; }
+  th { background:var(--green-l); }
+  #summary th { background:var(--green-m); color:#fff; }
+  #summary td.name { font-weight:bold; }
+  #summary tr.grand td { background:var(--green-xl); font-weight:bold; font-size:14px; border-top:2px solid var(--green-d); }
+  .num { text-align:right; white-space:nowrap; }
+  .ctr { text-align:center; }
+  #note { margin:4px 0 0; font-size:11px; color:#757575; font-style:italic; }
+  .box { margin:18px auto; max-width:1180px; }
+  .box h2 { margin:0; padding:7px 10px; font-size:14px; color:#fff; background:var(--slate); display:flex; align-items:center; gap:10px; }
+  .box h2 small { font-weight:normal; opacity:.85; }
+  .box h2 .grow { flex:1; }
+  .box h2 input { width:64px; text-align:center; background:var(--yellow); border:1px solid var(--line); }
+  tr.sub td { background:var(--gray); font-weight:bold; }
+  td.in { background:var(--yellow); padding:0; }
+  td.in input { width:100%; border:0; background:transparent; padding:4px 6px; font:inherit; }
+  td.in input.r { text-align:right; }
+  td.in input:focus { outline:2px solid var(--green-m); outline-offset:-2px; background:#fffde7; }
+  .warn { color:var(--red); font-weight:bold; }
+  .ok { color:#2e7d32; }
+  .del { color:#9e9e9e; border:0; background:transparent; cursor:pointer; }
+  .del:hover { color:var(--red); }
+  .scroll { overflow-x:auto; }
+  #addrow { margin:6px 0 0; }
+</style>
+</head>
+<body>
+
+<div id="top"><div class="wrap">
+  <div class="bar">
+    <button id="prev">◀</button>
+    <input type="month" id="month">
+    <button id="next">▶</button>
+    <button id="reload">↻ 새로고침</button>
+    <span id="status"></span>
+    <span class="spacer"></span>
+    <button id="keybtn" class="ghost" title="Passcode 다시 입력">🔑</button>
+  </div>
+  <h1 id="title">Local Gross Sales</h1>
+  <table id="summary">
+    <thead><tr>
+      <th style="width:22%">Income Source</th><th>Products</th><th>Delivery</th><th>Tax</th><th>Total</th>
+      <th style="width:70px">Orders</th><th style="width:150px">Status</th>
+    </tr></thead>
+    <tbody>
+      <tr><td class="name">Invoice Orders</td><td class="num" id="s-inv-p"></td><td class="num" id="s-inv-d"></td><td class="num" id="s-inv-t"></td><td class="num" id="s-inv-T"></td><td class="ctr" id="s-inv-n"></td><td class="ctr" id="s-inv-s"></td></tr>
+      <tr><td class="name">Online Orders</td><td class="num" id="s-on-p"></td><td class="num" id="s-on-d"></td><td class="num" id="s-on-t"></td><td class="num" id="s-on-T"></td><td class="ctr" id="s-on-n"></td><td class="ctr" id="s-on-s"></td></tr>
+      <tr><td class="name">Phone Orders</td><td class="num" id="s-ph-p"></td><td class="num" id="s-ph-d"></td><td class="num" id="s-ph-t"></td><td class="num" id="s-ph-T"></td><td class="ctr" id="s-ph-n"></td><td class="ctr" id="s-ph-s"></td></tr>
+      <tr><td class="name">Walk-In Orders</td><td class="num" id="s-wi-p"></td><td class="num" id="s-wi-d"></td><td class="num" id="s-wi-t"></td><td class="num" id="s-wi-T"></td><td class="ctr" id="s-wi-n"></td><td class="ctr" id="s-wi-s"></td></tr>
+      <tr class="grand"><td class="name">Grand Total</td><td class="num" id="s-gt-p"></td><td class="num" id="s-gt-d"></td><td class="num" id="s-gt-t"></td><td class="num" id="s-gt-T"></td><td class="ctr" id="s-gt-n"></td><td></td></tr>
+    </tbody>
+  </table>
+  <div id="note"></div>
+</div></div>
+
+<div id="boxes"></div>
+
+<script>
+/* ▼▼▼ Apps Script 웹 앱 URL을 여기에 붙여넣으세요 (…/exec) ▼▼▼ */
+const API = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
+/* ▲▲▲ Passcode는 코드에 넣지 말고, 화면에서 입력하세요 (이 브라우저에만 저장됩니다) ▲▲▲ */
+
+const $ = s => document.querySelector(s);
+const r2 = x => Math.round(x * 100) / 100;
+const num = v => { const n = parseFloat(String(v == null ? '' : v).replace(/[$,\s]/g, '')); return isNaN(n) ? 0 : n; };
+const fmt = n => '$' + (n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const blank = v => v === '' || v == null;
+
+let ym = localStorage.getItem('st_ym') || new Date().toISOString().slice(0, 7);
+let D = null, dirtyInv = false, dirtyWi = false, timer = null, saving = false;
+
+/* ───── 통신 ───── */
+function getKey(force) {
+  let k = force ? null : localStorage.getItem('st_key');
+  if (!k) { k = prompt('Passcode'); if (k) localStorage.setItem('st_key', k); }
+  return k;
+}
+async function call(action, payload) {
+  const key = getKey();
+  if (!key) throw new Error('Passcode 필요');
+  const res = await fetch(API, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },   // preflight 방지
+    body: JSON.stringify(Object.assign({ action, key, ym }, payload || {}))
+  });
+  const j = await res.json();
+  if (!j.ok) {
+    if (j.error === 'unauthorized') localStorage.removeItem('st_key');
+    throw new Error(j.error === 'unauthorized' ? 'Passcode가 틀립니다' : j.error);
+  }
+  return j.data;
+}
+function setStatus(msg, err) { const s = $('#status'); s.textContent = msg; s.className = err ? 'err' : ''; }
+
+/* ───── 불러오기 / 저장 ───── */
+async function load() {
+  $('#month').value = ym;
+  localStorage.setItem('st_ym', ym);
+  const [y, m] = ym.split('-');
+  $('#title').textContent = y + ' - ' + parseInt(m, 10) + ' Local Gross Sales';
+  setStatus('불러오는 중…');
+  try {
+    D = await call('getMonth');
+    while (D.walkin.length < 10) D.walkin.push(emptyRow());
+    renderAll();
+    dirtyInv = dirtyWi = false;
+    setStatus('최신 ✓');
+  } catch (e) { setStatus('⚠ ' + e.message, true); }
+}
+function emptyRow() { return { date: '', desc: '', products: '', delivery: '', taxOverride: '', memo: '' }; }
+const nonEmpty = r => ['date', 'desc', 'products', 'delivery', 'taxOverride', 'memo'].some(k => !blank(r[k]));
+
+function scheduleSave() {
+  setStatus('수정됨…');
+  clearTimeout(timer);
+  timer = setTimeout(save, 1200);
+}
+async function save() {
+  if (saving) { timer = setTimeout(save, 600); return; }
+  const dI = dirtyInv, dW = dirtyWi;
+  if (!dI && !dW) return;
+  dirtyInv = dirtyWi = false; saving = true;
+  setStatus('저장 중…');
+  try {
+    if (dI) await call('saveInvoice', { rows: D.invoice.map(a => ({ code: a.code, products: a.products, delivery: a.delivery, tax: a.tax })) });
+    if (dW) await call('saveWalkin', { rate: D.rate, rows: D.walkin.filter(nonEmpty) });
+    setStatus('저장됨 ✓');
+  } catch (e) {
+    dirtyInv = dirtyInv || dI; dirtyWi = dirtyWi || dW;
+    setStatus('⚠ 저장 실패: ' + e.message, true);
+  } finally { saving = false; }
+}
+window.addEventListener('beforeunload', e => { if (dirtyInv || dirtyWi) { e.preventDefault(); e.returnValue = ''; } });
+
+/* ───── 렌더링 ───── */
+function renderAll() {
+  $('#boxes').innerHTML = boxInvoice() + boxOrders('on', '② Online Orders', '꽃집관리 "주문 기록" 자동 집계 · 주문 출처 = Online', D.online)
+    + boxOrders('ph', '③ Phone Orders', '꽃집관리 "주문 기록" 자동 집계 · 주문 출처 = Phone', D.phone) + boxWalkin();
+  compute();
+}
+
+function boxInvoice() {
+  const rows = D.invoice.map((a, i) => `<tr>
+    <td>${esc(a.code)}</td><td>${esc(a.billTo)}</td>
+    <td class="in"><input class="r" inputmode="decimal" data-k="inv" data-i="${i}" data-f="products" value="${esc(a.products)}"></td>
+    <td class="in"><input class="r" inputmode="decimal" data-k="inv" data-i="${i}" data-f="delivery" value="${esc(a.delivery)}"></td>
+    <td class="in"><input class="r" inputmode="decimal" data-k="inv" data-i="${i}" data-f="tax" value="${esc(a.tax)}"></td>
+    <td class="num">${fmt(a.total)}</td><td class="ctr">${a.count}</td><td class="ctr" id="ichk-${i}"></td></tr>`).join('');
+  return `<div class="box"><h2>① Invoice Orders <small>청구월 ${ym} · 인보이스 입력 시트에서 자동 집계 · 노란 칸은 직접 입력</small></h2>
+    <div class="scroll"><table><thead><tr><th>Account</th><th>Bill To</th><th>Products</th><th>Delivery</th><th>Tax</th><th>Total</th><th>Orders</th><th>Check</th></tr></thead>
+    <tbody>${rows}<tr class="sub"><td colspan="2">Subtotal</td><td class="num" id="b-inv-p"></td><td class="num" id="b-inv-d"></td><td class="num" id="b-inv-t"></td><td class="num" id="b-inv-T"></td><td class="ctr" id="b-inv-n"></td><td></td></tr></tbody></table></div></div>`;
+}
+
+function boxOrders(id, title, sub, list) {
+  const rows = list.map(o => `<tr><td>${esc(o.date)}</td><td>${esc(o.who)}</td><td class="num">${fmt(o.prod)}</td><td class="num">${fmt(o.del)}</td>
+    <td class="num">${fmt(o.tax)}</td><td class="num">${fmt(o.tot)}</td><td class="ctr">${esc(o.delivDate)}</td>
+    <td class="ctr ${o.ok ? 'ok' : 'warn'}">${o.ok ? 'OK' : '⚠ 합계 확인'}</td></tr>`).join('')
+    || '<tr><td colspan="8" class="ctr" style="color:#9e9e9e">이 달 주문 없음</td></tr>';
+  return `<div class="box"><h2>${title} <small>${sub}</small></h2>
+    <div class="scroll"><table><thead><tr><th style="width:95px">Order Date</th><th>Customer → Recipient</th><th>Products</th><th>Delivery</th><th>Tax</th><th>Total</th><th style="width:100px">Delivery Date</th><th style="width:100px">Check</th></tr></thead>
+    <tbody>${rows}<tr class="sub"><td colspan="2">Subtotal (${list.length}건)</td><td class="num" id="b-${id}-p"></td><td class="num" id="b-${id}-d"></td><td class="num" id="b-${id}-t"></td><td class="num" id="b-${id}-T"></td><td colspan="2"></td></tr></tbody></table></div></div>`;
+}
+
+function walkinRowsHtml() {
+  return D.walkin.map((r, i) => `<tr>
+    <td class="in"><input type="date" data-k="wi" data-i="${i}" data-f="date" value="${esc(r.date)}"></td>
+    <td class="in"><input data-k="wi" data-i="${i}" data-f="desc" value="${esc(r.desc)}"></td>
+    <td class="in"><input class="r" inputmode="decimal" data-k="wi" data-i="${i}" data-f="products" value="${esc(r.products)}"></td>
+    <td class="in"><input class="r" inputmode="decimal" data-k="wi" data-i="${i}" data-f="delivery" value="${esc(r.delivery)}"></td>
+    <td class="num" id="wtax-${i}"></td><td class="num" id="wtot-${i}"></td>
+    <td class="in"><input class="r" inputmode="decimal" data-k="wi" data-i="${i}" data-f="taxOverride" value="${esc(r.taxOverride)}"></td>
+    <td class="in"><input data-k="wi" data-i="${i}" data-f="memo" value="${esc(r.memo)}"></td>
+    <td class="ctr"><button class="del" data-del="${i}" title="행 삭제">✕</button></td></tr>`).join('');
+}
+
+function boxWalkin() {
+  return `<div class="box"><h2><span>④ Walk-In Orders <small>수동 입력 · Tax는 자동 계산 · 면세는 Tax Override에 0</small></span><span class="grow"></span>
+    <span>Tax rate <input id="rate" inputmode="decimal" value="${r2(D.rate * 100)}">%</span></h2>
+    <div class="scroll"><table><thead><tr><th style="width:130px">Date</th><th>Description</th><th>Products</th><th>Delivery</th><th>Tax (auto)</th><th>Total</th><th>Tax Override</th><th>Memo</th><th style="width:32px"></th></tr></thead>
+    <tbody id="wibody">${walkinRowsHtml()}<tr class="sub"><td colspan="2">Subtotal</td><td class="num" id="b-wi-p"></td><td class="num" id="b-wi-d"></td><td class="num" id="b-wi-t"></td><td class="num" id="b-wi-T"></td><td colspan="3"></td></tr></tbody></table></div>
+    <button id="addrow">+ 행 추가</button></div>`;
+}
+
+/* ───── 계산 ───── */
+function wTax(r) {
+  if (blank(r.products) && blank(r.delivery)) return null;
+  return !blank(r.taxOverride) ? num(r.taxOverride) : r2(num(r.products) * D.rate);
+}
+function setT(id, v, cls) { const e = document.getElementById(id); if (e) e.textContent = v; return e; }
+
+function compute() {
+  if (!D) return;
+  const S = { inv: { p: 0, d: 0, t: 0, T: 0, n: 0, w: 0 }, on: { p: 0, d: 0, t: 0, T: 0, n: 0, w: 0 },
+              ph: { p: 0, d: 0, t: 0, T: 0, n: 0, w: 0 }, wi: { p: 0, d: 0, t: 0, T: 0, n: 0, w: 0 } };
+
+  D.invoice.forEach((a, i) => {
+    const p = num(a.products), d = num(a.delivery), t = num(a.tax);
+    S.inv.p += p; S.inv.d += d; S.inv.t += t; S.inv.T += a.total; S.inv.n += a.count;
+    let chk = '-', bad = false;
+    if (a.total !== 0) {
+      if (blank(a.products) && blank(a.delivery) && blank(a.tax)) { chk = '⚠ 분리 입력 필요'; bad = true; }
+      else if (Math.abs(p + d + t - a.total) > 0.02) { chk = '⚠ 합계 불일치'; bad = true; }
+      else chk = 'OK';
+    }
+    if (bad) S.inv.w++;
+    const e = setT('ichk-' + i, chk); if (e) e.className = 'ctr ' + (bad ? 'warn' : chk === 'OK' ? 'ok' : '');
+  });
+  [['on', D.online], ['ph', D.phone]].forEach(([k, list]) => list.forEach(o => {
+    S[k].p += o.prod; S[k].d += o.del; S[k].t += o.tax; S[k].T += o.tot; S[k].n++; if (!o.ok) S[k].w++;
+  }));
+  D.walkin.forEach((r, i) => {
+    const t = wTax(r);
+    if (t === null) { setT('wtax-' + i, ''); setT('wtot-' + i, ''); return; }
+    const p = num(r.products), d = num(r.delivery);
+    S.wi.p += p; S.wi.d += d; S.wi.t += t; S.wi.T += r2(p + d + t); S.wi.n++;
+    setT('wtax-' + i, fmt(t)); setT('wtot-' + i, fmt(r2(p + d + t)));
+  });
+
+  // 박스별 소계
+  ['inv', 'on', 'ph', 'wi'].forEach(k => ['p', 'd', 't', 'T'].forEach(f => setT('b-' + k + '-' + f, fmt(r2(S[k][f])))));
+  setT('b-inv-n', S.inv.n);
+
+  // 요약
+  const gt = { p: 0, d: 0, t: 0, T: 0, n: 0 };
+  ['inv', 'on', 'ph', 'wi'].forEach(k => {
+    ['p', 'd', 't', 'T'].forEach(f => { setT('s-' + k + '-' + f, fmt(r2(S[k][f]))); gt[f] += S[k][f]; });
+    setT('s-' + k + '-n', S[k].n); gt.n += S[k].n;
+    const st = document.getElementById('s-' + k + '-s');
+    if (k === 'wi') { st.textContent = S.wi.n ? '✔ ' + S.wi.n + '건 입력' : '입력 대기'; st.className = 'ctr'; }
+    else { st.textContent = S[k].w ? '⚠ ' + S[k].w + '건 확인 필요' : '✔ OK'; st.className = 'ctr ' + (S[k].w ? 'warn' : 'ok'); }
+  });
+  ['p', 'd', 't', 'T'].forEach(f => setT('s-gt-' + f, fmt(r2(gt[f]))));
+  setT('s-gt-n', gt.n);
+
+  const basis = D.basis === 'delivery' ? '배달 일자' : '주문 일자';
+  $('#note').textContent = '기준: Online/Phone = ' + basis + ' · Invoice = 청구월 · Walk-In = 직접 입력' +
+    (D.warnings.length ? '  |  ⚠ ' + D.warnings.join(' / ') : '');
+}
+
+/* ───── 이벤트 ───── */
+document.addEventListener('input', e => {
+  const t = e.target;
+  if (t.id === 'rate') {
+    const v = num(t.value) / 100;
+    if (v > 0 && v < 1) { D.rate = v; dirtyWi = true; compute(); scheduleSave(); }
+    return;
+  }
+  if (t.dataset.k === 'inv') { D.invoice[+t.dataset.i][t.dataset.f] = t.value; dirtyInv = true; }
+  else if (t.dataset.k === 'wi') { D.walkin[+t.dataset.i][t.dataset.f] = t.value; dirtyWi = true; }
+  else return;
+  compute(); scheduleSave();
+});
+
+document.addEventListener('click', e => {
+  const t = e.target;
+  if (t.id === 'addrow') {
+    for (let i = 0; i < 5; i++) D.walkin.push(emptyRow());
+    $('#wibody').innerHTML = walkinRowsHtml() + document.querySelector('#wibody tr.sub').outerHTML;
+    compute();
+  } else if (t.dataset.del !== undefined) {
+    D.walkin.splice(+t.dataset.del, 1);
+    while (D.walkin.length < 10) D.walkin.push(emptyRow());
+    const sub = document.querySelector('#wibody tr.sub').outerHTML;
+    $('#wibody').innerHTML = walkinRowsHtml() + sub;
+    dirtyWi = true; compute(); scheduleSave();
+  }
+});
+
+async function go(newYm) { await save(); ym = newYm; await load(); }
+function shift(n) { const [y, m] = ym.split('-').map(Number); const d = new Date(y, m - 1 + n, 1); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); }
+$('#prev').onclick = () => go(shift(-1));
+$('#next').onclick = () => go(shift(1));
+$('#month').onchange = e => { if (e.target.value) go(e.target.value); };
+$('#reload').onclick = async () => { await save(); await load(); };
+$('#keybtn').onclick = () => { getKey(true); load(); };
+
+if (API.indexOf('PASTE_') === 0) setStatus('⚠ index.html 맨 위 API 상수에 Apps Script URL을 붙여넣으세요', true);
+else load();
+</script>
+</body>
+</html>
