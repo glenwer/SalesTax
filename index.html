@@ -37,6 +37,7 @@
   tr.sub td { background:var(--gray); font-weight:bold; }
   td.in { background:var(--yellow); padding:0; }
   td.in input { width:100%; border:0; background:transparent; padding:4px 6px; font:inherit; }
+  td.in.auto { background:#e3f2fd; }
   td.in input.r { text-align:right; }
   td.in input:focus { outline:2px solid var(--green-m); outline-offset:-2px; background:#fffde7; }
   .warn { color:var(--red); font-weight:bold; }
@@ -87,6 +88,7 @@ const num = v => { const n = parseFloat(String(v == null ? '' : v).replace(/[$,\
 const fmt = n => '$' + (n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const blank = v => v === '' || v == null;
+const f2 = v => blank(v) ? '' : Number(v).toFixed(2);
 
 let ym = localStorage.getItem('st_ym') || new Date().toISOString().slice(0, 7);
 let D = null, dirtyInv = false, dirtyWi = false, timer = null, saving = false;
@@ -134,7 +136,7 @@ async function save() {
   dirtyInv = dirtyWi = false; saving = true;
   setStatus('저장 중…');
   try {
-    if (dI) await call('saveInvoice', { rows: D.invoice.map(a => ({ code: a.code, products: a.products, delivery: a.delivery, tax: a.tax })) });
+    if (dI) await call('saveInvoice', { rows: D.invoice.filter(a => a.manual).map(a => ({ code: a.code, products: a.products, delivery: a.delivery, tax: a.tax })) });
     if (dW) await call('saveWalkin', { rate: D.rate, rows: D.walkin.filter(nonEmpty) });
     setStatus('저장됨 ✓');
   } catch (e) {
@@ -154,12 +156,12 @@ function renderAll() {
 function boxInvoice() {
   const rows = D.invoice.map((a, i) => `<tr>
     <td>${esc(a.code)}</td><td>${esc(a.billTo)}</td>
-    <td class="in"><input class="r" inputmode="decimal" data-k="inv" data-i="${i}" data-f="products" value="${esc(a.products)}"></td>
-    <td class="in"><input class="r" inputmode="decimal" data-k="inv" data-i="${i}" data-f="delivery" value="${esc(a.delivery)}"></td>
-    <td class="in"><input class="r" inputmode="decimal" data-k="inv" data-i="${i}" data-f="tax" value="${esc(a.tax)}"></td>
+    <td class="in ${a.manual ? '' : 'auto'}"><input class="r" inputmode="decimal" data-k="inv" data-i="${i}" data-f="products" value="${esc(f2(a.products))}"></td>
+    <td class="in ${a.manual ? '' : 'auto'}"><input class="r" inputmode="decimal" data-k="inv" data-i="${i}" data-f="delivery" value="${esc(f2(a.delivery))}"></td>
+    <td class="in ${a.manual ? '' : 'auto'}"><input class="r" inputmode="decimal" data-k="inv" data-i="${i}" data-f="tax" value="${esc(f2(a.tax))}"></td>
     <td class="num">${fmt(a.total)}</td><td class="ctr">${a.count}</td><td class="ctr" id="ichk-${i}"></td></tr>`).join('')
     || '<tr><td colspan="8" class="ctr" style="color:#9e9e9e">이 달 인보이스 주문 없음</td></tr>';
-  return `<div class="box"><h2>① Invoice Orders <small>청구월 ${ym} · 인보이스 입력 시트에서 자동 집계 · 노란 칸은 직접 입력</small></h2>
+  return `<div class="box"><h2>① Invoice Orders <small>청구월 ${ym} · 파란 칸 = 자동 역계산(배달료 건당 고정 + 세율) · 직접 고치면 노란 칸 · 세 칸을 비우고 새로고침하면 자동으로 복귀</small></h2>
     <div class="scroll"><table><thead><tr><th>Account</th><th>Bill To</th><th>Products</th><th>Delivery</th><th>Tax</th><th>Total</th><th>Orders</th><th>Check</th></tr></thead>
     <tbody>${rows}<tr class="sub"><td colspan="2">Subtotal</td><td class="num" id="b-inv-p"></td><td class="num" id="b-inv-d"></td><td class="num" id="b-inv-t"></td><td class="num" id="b-inv-T"></td><td class="ctr" id="b-inv-n"></td><td></td></tr></tbody></table></div></div>`;
 }
@@ -258,7 +260,11 @@ document.addEventListener('input', e => {
     if (v > 0 && v < 1) { D.rate = v; dirtyWi = true; compute(); scheduleSave(); }
     return;
   }
-  if (t.dataset.k === 'inv') { D.invoice[+t.dataset.i][t.dataset.f] = t.value; dirtyInv = true; }
+  if (t.dataset.k === 'inv') {
+    const a = D.invoice[+t.dataset.i];
+    a[t.dataset.f] = t.value; a.manual = true; dirtyInv = true;
+    t.closest('tr').querySelectorAll('td.in').forEach(td => td.classList.remove('auto'));
+  }
   else if (t.dataset.k === 'wi') { D.walkin[+t.dataset.i][t.dataset.f] = t.value; dirtyWi = true; }
   else return;
   compute(); scheduleSave();
