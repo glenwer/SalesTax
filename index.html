@@ -56,8 +56,6 @@
     <button id="next">▶</button>
     <button id="reload">↻ 새로고침</button>
     <span id="status"></span>
-    <span class="spacer"></span>
-    <button id="keybtn" class="ghost" title="Passcode 다시 입력">🔑</button>
   </div>
   <h1 id="title">Local Gross Sales</h1>
   <table id="summary">
@@ -80,8 +78,8 @@
 
 <script>
 /* ▼▼▼ Apps Script 웹 앱 URL을 여기에 붙여넣으세요 (…/exec) ▼▼▼ */
-const API = 'https://script.google.com/macros/s/AKfycbxFg_A1fU48eXOLSDrNDVNyVcekloemBEyx0yWtqjajAKwp-J8l1lZ2hH-ohqes2mXDRA/exec';
-/* ▲▲▲ Passcode는 코드에 넣지 말고, 화면에서 입력하세요 (이 브라우저에만 저장됩니다) ▲▲▲ */
+const API = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
+/* ▲▲▲ */
 
 const $ = s => document.querySelector(s);
 const r2 = x => Math.round(x * 100) / 100;
@@ -94,24 +92,14 @@ let ym = localStorage.getItem('st_ym') || new Date().toISOString().slice(0, 7);
 let D = null, dirtyInv = false, dirtyWi = false, timer = null, saving = false;
 
 /* ───── 통신 ───── */
-function getKey(force) {
-  let k = force ? null : localStorage.getItem('st_key');
-  if (!k) { k = prompt('Passcode'); if (k) localStorage.setItem('st_key', k); }
-  return k;
-}
 async function call(action, payload) {
-  const key = getKey();
-  if (!key) throw new Error('Passcode 필요');
   const res = await fetch(API, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },   // preflight 방지
-    body: JSON.stringify(Object.assign({ action, key, ym }, payload || {}))
+    body: JSON.stringify(Object.assign({ action, ym }, payload || {}))
   });
   const j = await res.json();
-  if (!j.ok) {
-    if (j.error === 'unauthorized') localStorage.removeItem('st_key');
-    throw new Error(j.error === 'unauthorized' ? 'Passcode가 틀립니다' : j.error);
-  }
+  if (!j.ok) throw new Error(j.error);
   return j.data;
 }
 function setStatus(msg, err) { const s = $('#status'); s.textContent = msg; s.className = err ? 'err' : ''; }
@@ -296,7 +284,6 @@ $('#prev').onclick = () => go(shift(-1));
 $('#next').onclick = () => go(shift(1));
 $('#month').onchange = e => { if (e.target.value) go(e.target.value); };
 $('#reload').onclick = async () => { await save(); await load(); };
-$('#keybtn').onclick = () => { getKey(true); load(); };
 
 if (API.indexOf('PASTE_') === 0) setStatus('⚠ index.html 맨 위 API 상수에 Apps Script URL을 붙여넣으세요', true);
 else load();
